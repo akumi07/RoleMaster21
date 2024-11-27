@@ -54,46 +54,62 @@ function AddUserForm() {
     setIsLoading(true);
 
     try {
-      // Step 1: Check if admin email exists in Firestore with role=admin
-      const querySnapshot = await getDocs(
-        query(
-          collection(db, "users"),
-          where("email", "==", adminEmail.toLowerCase())
-        )
-      );
+      if (isFirstAdmin) {
+        // If it's the first admin registration
+        const userData = {
+          name,
+          email,
+          role: "admin", // Set role to admin for the first user
+          status: "inactive",
+        };
 
-      if (querySnapshot.empty) {
-        alert("Admin email not found in the database.");
-        setIsLoading(false);
-        return;
-      }
+        await addDoc(collection(db, "users"), userData);
 
-      const adminDoc = querySnapshot.docs[0]; // Get the first document that matches the email
-      if (adminDoc.data().role !== "admin") {
-        alert(
-          "Action not allowed. Admin email is not registered with role=admin."
+        alert("First admin added successfully!");
+        navigate("/userManagement"); // Redirect to user management or another appropriate page
+      } else {
+        // If it's not the first admin, proceed with OTP flow
+        // Step 1: Check if admin email exists in Firestore with role=admin
+        const querySnapshot = await getDocs(
+          query(
+            collection(db, "users"),
+            where("email", "==", adminEmail.toLowerCase())
+          )
         );
-        setIsLoading(false);
-        return;
+
+        if (querySnapshot.empty) {
+          alert("Admin email not found in the database.");
+          setIsLoading(false);
+          return;
+        }
+
+        const adminDoc = querySnapshot.docs[0]; // Get the first document that matches the email
+        if (adminDoc.data().role !== "admin") {
+          alert(
+            "Action not allowed. Admin email is not registered with role=admin."
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        // Step 2: Generate OTP and send it to the admin email
+        const newOtp = Math.floor(1000 + Math.random() * 9000); // Generate 4-digit OTP
+        setGeneratedOtp(newOtp.toString()); // Save OTP for later verification
+
+        // Send email using EmailJS
+        await emailjs.send(
+          import.meta.env.VITE_EMAILJS_SERVICE_ID, // Service ID from .env
+          import.meta.env.VITE_EMAILJS_TEMPLATE_ID, // Template ID from .env
+          {
+            admin_email: adminEmail,
+            otp: newOtp,
+          },
+          import.meta.env.VITE_EMAILJS_PUBLIC_KEY // Public key from .env
+        );
+
+        alert("OTP sent to admin email!");
+        setOtpSent(true); // Display OTP input field
       }
-
-      // Step 2: Generate OTP and send it to the admin email
-      const newOtp = Math.floor(1000 + Math.random() * 9000); // Generate 4-digit OTP
-      setGeneratedOtp(newOtp.toString()); // Save OTP for later verification
-
-      // Send email using EmailJS
-      await emailjs.send(
-        import.meta.env.VITE_EMAILJS_SERVICE_ID, // Service ID from .env
-        import.meta.env.VITE_EMAILJS_TEMPLATE_ID, // Template ID from .env
-        {
-          admin_email: adminEmail,
-          otp: newOtp,
-        },
-        import.meta.env.VITE_EMAILJS_PUBLIC_KEY// Public key from .env
-      );
-
-      alert("OTP sent to admin email!");
-      setOtpSent(true); // Display OTP input field
     } catch (error) {
       console.error("Error sending OTP:", error);
       alert("Failed to send OTP. Please try again.");
@@ -112,7 +128,7 @@ function AddUserForm() {
         const userData = {
           name,
           email,
-          role,
+          role: "user", // Default role is user for others
           status: "inactive",
         };
 
@@ -137,9 +153,7 @@ function AddUserForm() {
         </h2>
         <form onSubmit={handleSendOtp} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
             <input
               type="text"
               value={name}
@@ -150,9 +164,7 @@ function AddUserForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Email</label>
             <input
               type="email"
               value={email}
@@ -162,23 +174,23 @@ function AddUserForm() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Admin Email
-            </label>
-            <input
-              type="email"
-              value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
-              required
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
+          {!isFirstAdmin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Admin Email
+              </label>
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                required
+                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Role
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Role</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
@@ -209,12 +221,10 @@ function AddUserForm() {
           {!otpSent ? (
             <button
               type="submit"
-              className={`w-full ${
-                isLoading ? "bg-gray-400" : "bg-blue-500"
-              } text-white py-2 px-4 rounded-md`}
+              className={`w-full ${isLoading ? "bg-gray-400" : "bg-blue-500"} text-white py-2 px-4 rounded-md`}
               disabled={isLoading}
             >
-              {isLoading ? "Sending OTP..." : "Send OTP"}
+              {isFirstAdmin ? "Add Admin" : isLoading ? "Sending OTP..." : "Send OTP"}
             </button>
           ) : (
             <button
@@ -227,9 +237,7 @@ function AddUserForm() {
         </form>
 
         {verificationStatus && (
-          <div className="mt-4 text-center text-red-500">
-            {verificationStatus}
-          </div>
+          <div className="mt-4 text-center text-red-500">{verificationStatus}</div>
         )}
       </div>
     </div>
