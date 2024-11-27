@@ -13,6 +13,12 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
+const convertToCSV = (data) => {
+  if (!data || data.length === 0) return "";
+  const headers = Object.keys(data[0]).join(",");
+  const rows = data.map((row) => Object.values(row).join(","));
+  return [headers, ...rows].join("\n");
+};
 
 const UserManagement = () => {
   const navigate = useNavigate();
@@ -71,6 +77,17 @@ const UserManagement = () => {
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
+  };
+  const handleDownloadCSV = () => {
+    const csvContent = convertToCSV(users);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "users.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
   const handleEdit = async () => {
     // const currentUser = auth.currentUser;
@@ -213,7 +230,14 @@ const UserManagement = () => {
             <option value="activate">Activate User</option>
             <option value="delete">Delete User</option>
           </select>
-
+          <div className="flex items-center mt-4 md:mt-0">
+          <button
+            onClick={handleDownloadCSV}
+            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition mr-4"
+          >
+            Download CSV
+          </button>
+          </div>
           <input
             type="text"
             placeholder="Search for users"
