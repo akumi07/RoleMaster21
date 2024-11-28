@@ -89,7 +89,7 @@ const UserManagement = () => {
     link.click();
     document.body.removeChild(link);
   };
-  const handleEdit = async () => {
+  const handleEdit = async (users) => {
     // const currentUser = auth.currentUser;
     if (isAdmin) {
       navigate(`/update-user`, {
@@ -100,13 +100,10 @@ const UserManagement = () => {
           role: users.role,
         },
       });
+    } else {
+      // If the logged-in user is not an admin, show an alert message
+      alert("Action is allowed to admin only.");
     }
-      
-
-      else{
-        // If the logged-in user is not an admin, show an alert message
-        alert("Action is allowed to admin only.");
-      } 
   };
 
   const filteredUsers = users.filter(
@@ -166,13 +163,17 @@ const UserManagement = () => {
   };
 
   const handleDelete = async () => {
-    if (isAdmin) {
-      selectedUsers.forEach(async (userId) => {
-        await deleteDoc(doc(db, "users", userId));
-      });
-      setShowDeleteModal(false);
-      setSelectedUsers([]);
-      setBulkAction("");
+    if (isAdmin && userToDelete) {
+      try {
+        await deleteDoc(doc(db, "users", userToDelete.id));
+        setShowDeleteModal(false);
+        setUserToDelete(null);
+        setUsers((prevUsers) =>
+          prevUsers.filter((user) => user.id !== userToDelete.id)
+        );
+      } catch (error) {
+        console.error("Error deleting user:", error);
+      }
     } else {
       alert("You do not have permission to delete users.");
     }
@@ -231,12 +232,12 @@ const UserManagement = () => {
             <option value="delete">Delete User</option>
           </select>
           <div className="flex items-center mt-4 md:mt-0">
-          <button
-            onClick={handleDownloadCSV}
-            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition mr-4"
-          >
-            Download CSV
-          </button>
+            <button
+              onClick={handleDownloadCSV}
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition mr-4"
+            >
+              Download CSV
+            </button>
           </div>
           <input
             type="text"
@@ -339,23 +340,25 @@ const UserManagement = () => {
                   </label>
                 </td>
 
-                <td className="p-4 text-center">
-                  <button
-                    onClick={() => handleEdit(user.id)}
-                    className="text-blue-500 hover:text-blue-600"
-                  >
-                    <FaEdit />
-                  </button>
+                <td className="p-4 text-center align-middle">
+                  <div className="flex justify-center space-x-4">
+                    <button
+                      onClick={() => handleEdit(user)}
+                      className="text-blue-500 hover:text-blue-600"
+                    >
+                      <FaEdit />
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      setUserToDelete(user);
-                      setShowDeleteModal(true);
-                    }}
-                    className="ml-4 text-red-500 hover:text-red-600"
-                  >
-                    <FaTrash />
-                  </button>
+                    <button
+                      onClick={() => {
+                        setUserToDelete(user);
+                        setShowDeleteModal(true);
+                      }}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
