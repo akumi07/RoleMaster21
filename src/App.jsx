@@ -26,10 +26,10 @@ import ContactUS from "./components/contactUs";
         <Route path="/register" element={<Register/>}/>
         <Route path="/userManagement" element={<UserManagement/>}/>
         <Route path="/add-user" element={<AddUserForm/>}/>
+        <Route path="/contact"element={<ContactUS/>}/>
         <Route path="/update-user"element={<UpdateUser/>}/>
         <Route path="/pricing" element={<Pricing/>}/>
         <Route path="/leadership" element={<Leadership/>}/>
-        <Route path="/contact"element={<ContactUS/>}/>
         </Routes>
     </Router>
     </LoginProvider>
